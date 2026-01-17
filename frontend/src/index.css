@@ -1,0 +1,321 @@
+:root {
+  --primary-color: #e91e63;
+  --secondary-color: #673ab7;
+  --success-color: #4caf50;
+  --danger-color: #f44336;
+  --warning-color: #ff9800;
+  --info-color: #2196f3;
+  --light-bg: #f5f7fa;
+  --dark-text: #2c3e50;
+}
+
+body {
+  background-color: var(--light-bg);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: var(--dark-text);
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+/* === Login/Signup Page Styles === */
+.login-page-wrapper {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.login-container {
+  max-width: 450px;
+  width: 100%;
+}
+
+.login-card {
+  border: none;
+  border-radius: 15px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  background: white;
+}
+
+.brand-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.brand-icon {
+  font-size: 3.5rem;
+  margin-bottom: 10px;
+}
+
+.brand-title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  margin: 0;
+}
+
+.brand-subtitle {
+  font-size: 0.9rem;
+  color: #666;
+  margin: 5px 0 0 0;
+}
+
+.demo-credentials {
+  background-color: #e3f2fd;
+  border-left: 4px solid #2196f3;
+  border-radius: 5px;
+  padding: 12px;
+  margin-top: 20px;
+  font-size: 0.85rem;
+  color: #1565c0;
+}
+
+/* === Dashboard & Global Styles === */
+.container-main {
+  padding: 2rem 0;
+}
+
+.card {
+  border: none;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  /* Demo style */
+  transition: all 0.3s;
+  margin-bottom: 1.5rem;
+  background: white;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  /* Demo style */
+}
+
+/* Specific Card Header from Demo */
+.card-header-custom {
+  background-color: var(--primary-color) !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 12px 12px 0 0 !important;
+  padding: 1.5rem !important;
+  font-weight: 600 !important;
+}
+
+/* Admin Card Header Gradient */
+.card-header-admin {
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%) !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 12px 12px 0 0 !important;
+  padding: 1.5rem !important;
+  font-weight: 600 !important;
+}
+
+/* Navbar */
+.navbar-custom {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.navbar-brand {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: white !important;
+}
+
+/* Buttons */
+.btn-primary {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+  border-radius: 8px;
+  /* Demo style */
+  font-weight: 600;
+  transition: all 0.3s;
+  padding: 10px 24px;
+}
+
+.btn-primary:hover {
+  background-color: #c2185b;
+  border-color: #c2185b;
+  transform: translateY(-2px);
+}
+
+.btn-success {
+  background-color: var(--success-color);
+  border-color: var(--success-color);
+  color: white;
+}
+
+/* Form Controls */
+.form-control,
+.form-select {
+  border-radius: 8px !important;
+  border: 1px solid #ddd !important;
+  padding: 10px 12px !important;
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 0 0 0.2rem rgba(233, 30, 99, 0.25) !important;
+}
+
+/* User Dashboard Specifics */
+.readiness-box {
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+  color: white;
+  border-radius: 12px;
+  padding: 2rem;
+  text-align: center;
+  box-shadow: 0 4px 16px rgba(233, 30, 99, 0.3);
+}
+
+.readiness-value {
+  font-size: 2.5rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.readiness-label {
+  font-size: 0.9rem;
+  opacity: 0.9;
+  margin-top: 10px;
+}
+
+.skill-badge {
+  background-color: var(--primary-color);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  display: inline-block;
+  margin: 5px;
+}
+
+.recommendation-card {
+  border-left: 4px solid var(--primary-color);
+  border-radius: 8px;
+  padding: 1.5rem;
+  background: white;
+  margin-bottom: 1rem;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+.recommendation-priority {
+  display: inline-block;
+  background-color: var(--primary-color);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.progress-item {
+  padding: 1rem;
+  border-left: 4px solid var(--success-color);
+  background: white;
+  margin-bottom: 1rem;
+  border-radius: 4px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.stat-card {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  /* Demo style for user stats */
+}
+
+/* Admin Dashboard Specifics */
+.badge-admin {
+  background-color: var(--primary-color);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-left: 10px;
+}
+
+.stat-card-admin {
+  border: none;
+  border-radius: 12px;
+  text-align: center;
+  padding: 2rem 1.5rem;
+  color: white;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s;
+}
+
+.stat-card-admin:hover {
+  transform: translateY(-4px);
+}
+
+.stat-card-admin.primary {
+  background: linear-gradient(135deg, var(--primary-color) 0%, #d32f2f 100%);
+}
+
+.stat-card-admin.success {
+  background: linear-gradient(135deg, var(--success-color) 0%, #2e7d32 100%);
+}
+
+.stat-card-admin.info {
+  background: linear-gradient(135deg, var(--info-color) 0%, #1565c0 100%);
+}
+
+.stat-card-admin.warning {
+  background: linear-gradient(135deg, var(--warning-color) 0%, #ef6c00 100%);
+}
+
+.stat-number {
+  font-size: 2.5rem;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 10px;
+}
+
+.stat-label {
+  font-size: 0.95rem;
+  opacity: 0.95;
+}
+
+/* Nav Tabs */
+.nav-tabs {
+  border-bottom: 2px solid #e0e0e0;
+  margin-bottom: 2rem;
+}
+
+.nav-link {
+  color: #666;
+  font-weight: 600;
+  border: none;
+  border-bottom: 3px solid transparent;
+  padding: 12px 20px;
+  transition: all 0.3s;
+}
+
+.nav-link.active {
+  color: var(--primary-color) !important;
+  border-bottom-color: var(--primary-color) !important;
+  background-color: transparent !important;
+}
+
+.icon-box {
+  font-size: 2.5rem;
+  margin-bottom: 10px;
+}
