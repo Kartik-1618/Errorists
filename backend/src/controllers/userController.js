@@ -3,6 +3,7 @@ import Skill from '../models/Skill.js';
 import Role from '../models/Role.js';
 import Recommendation from '../models/Recommendation.js';
 import Progress from '../models/Progress.js';
+import { generateAIRecommendations } from '../services/aiService.js';
 
 export const getProfile = async (req, res) => {
     try {
@@ -115,9 +116,6 @@ export const logProgress = async (req, res) => {
     }
 };
 
-// ... imports
-import { generateAIRecommendations } from '../services/aiService.js';
-
 async function calculateReadiness(userId) {
     try {
         const user = await User.findById(userId);
@@ -136,7 +134,7 @@ async function calculateReadiness(userId) {
         user.readiness = readiness;
         await user.save();
 
-        // --- Recommendations Strategy ---
+        // --- Recommendations Generation ---
 
         // 1. Clear old pending recommendations
         await Recommendation.deleteMany({ userId: user._id, status: 'pending' });
@@ -168,7 +166,7 @@ async function calculateReadiness(userId) {
 
             finalRecommendations = missingSkills.map(skill => ({
                 userId: user._id,
-                skillId: skill.skillId,
+                skillId: skill.skillId, // Optional if strictly AI driven, but good for static
                 skillName: skill.skillName,
                 priority: skill.weight || 1,
                 learningAction: `Learn ${skill.skillName} (Level: ${skill.proficiencyLevel || 'Beginner'})`,
