@@ -38,10 +38,12 @@ const REAL_SKILLS = [
     { name: 'React', category: 'Frontend', difficulty: 'intermediate' },
     { name: 'Vue.js', category: 'Frontend', difficulty: 'intermediate' },
     { name: 'Angular', category: 'Frontend', difficulty: 'advanced' },
+    { name: 'Next.js', category: 'Frontend', difficulty: 'intermediate' },
     { name: 'Node.js', category: 'Backend', difficulty: 'intermediate' },
     { name: 'Django', category: 'Backend', difficulty: 'intermediate' },
     { name: 'Flask', category: 'Backend', difficulty: 'beginner' },
     { name: 'Spring Boot', category: 'Backend', difficulty: 'advanced' },
+    { name: 'GraphQL', category: 'Backend', difficulty: 'intermediate' },
     { name: 'TensorFlow', category: 'Data Science', difficulty: 'advanced' },
     { name: 'PyTorch', category: 'Data Science', difficulty: 'advanced' },
     { name: 'Pandas', category: 'Data Science', difficulty: 'intermediate' },
@@ -51,8 +53,10 @@ const REAL_SKILLS = [
     { name: 'Docker', category: 'DevOps', difficulty: 'intermediate' },
     { name: 'Kubernetes', category: 'DevOps', difficulty: 'advanced' },
     { name: 'AWS', category: 'Cloud', difficulty: 'intermediate' },
+    { name: 'AWS Lambda', category: 'Cloud', difficulty: 'intermediate' },
     { name: 'Azure', category: 'Cloud', difficulty: 'intermediate' },
     { name: 'Google Cloud', category: 'Cloud', difficulty: 'intermediate' },
+    { name: 'Redis', category: 'Database', difficulty: 'intermediate' },
     { name: 'Jenkins', category: 'DevOps', difficulty: 'intermediate' },
     { name: 'Jira', category: 'Tools', difficulty: 'beginner' },
     { name: 'Figma', category: 'Design', difficulty: 'beginner' },
@@ -67,17 +71,17 @@ const REAL_ROLES = [
     {
         name: 'Frontend Developer',
         domain: 'Software Development',
-        skills: ['HTML', 'CSS', 'JavaScript', 'React', 'Git', 'Figma']
+        skills: ['HTML', 'CSS', 'JavaScript', 'React', 'Git', 'Figma', 'Next.js']
     },
     {
         name: 'Backend Developer',
         domain: 'Software Development',
-        skills: ['Node.js', 'Express', 'MongoDB', 'SQL', 'Git', 'API Design']
+        skills: ['Node.js', 'Redis', 'SQL', 'Git', 'GraphQL']
     },
     {
         name: 'Full Stack Developer',
         domain: 'Software Development',
-        skills: ['JavaScript', 'React', 'Node.js', 'SQL', 'AWS', 'Docker']
+        skills: ['JavaScript', 'React', 'Node.js', 'SQL', 'AWS', 'Docker', 'GraphQL']
     },
     {
         name: 'Data Scientist',
@@ -87,12 +91,12 @@ const REAL_ROLES = [
     {
         name: 'DevOps Engineer',
         domain: 'DevOps',
-        skills: ['Linux', 'AWS', 'Docker', 'Kubernetes', 'Jenkins', 'Python']
+        skills: ['Linux', 'AWS', 'Docker', 'Kubernetes', 'Jenkins', 'Python', 'AWS Lambda']
     },
     {
         name: 'Product Manager',
         domain: 'Management',
-        skills: ['Communication', 'Leadership', 'Agile Methodology', 'Jira', 'Product Strategy']
+        skills: ['Communication', 'Leadership', 'Agile Methodology', 'Jira']
     }
 ];
 
@@ -106,20 +110,26 @@ const getRandomSubset = (arr, count) => {
 
 const seedData = async () => {
     await connectDB();
-    console.log('🌱 Starting Logical & Realistic Seeding v2...');
+    console.log('🌱 Starting Robust Seeding...');
 
     try {
+        console.log('🗑️  Cleaning Collections...');
         await Skill.deleteMany({});
         await Role.deleteMany({});
-        await User.deleteMany({ role: 'user' });
+        await User.deleteMany({ role: 'user' }); // Keep Admin
         await Recommendation.deleteMany({});
         await Progress.deleteMany({});
 
         // 1. Insert Skills
-        let allSkills = [...REAL_SKILLS];
-        for (let i = 0; i < 70; i++) {
+        console.log('🔥 Preparing Skills...');
+        // Deduplicate simple names
+        const uniqueRealSkills = [...new Map(REAL_SKILLS.map(item => [item.name, item])).values()];
+
+        let allSkills = [...uniqueRealSkills];
+        // Add random filler skills
+        for (let i = 0; i < 30; i++) {
             allSkills.push({
-                name: `Skill_${i}_${Date.now()}`, // Ensure unique
+                name: `Skill_${i}_${Date.now().toString().slice(-4)}`, // Shorter unique suffix
                 category: getRandomItem(['Niche Tech', 'Legacy', 'Enterprise', 'Research']),
                 difficulty: getRandomItem(['beginner', 'intermediate', 'advanced'])
             });
@@ -140,13 +150,14 @@ const seedData = async () => {
         createdSkills.forEach(s => skillMap[s.skillName] = s);
 
         // 2. Insert Roles
+        console.log('🎭 Preparing Roles...');
         const roleDocs = [];
         REAL_ROLES.forEach(r => {
             const required = r.skills.map(sName => {
                 const s = skillMap[sName];
+                // Gracefully skip if skill not found in map (though it should be there)
                 if (s) return { skillId: s._id, skillName: s.skillName, weight: 5, proficiencyLevel: 'advanced' };
-                const randomS = getRandomItem(createdSkills);
-                return { skillId: randomS._id, skillName: randomS.skillName, weight: 3, proficiencyLevel: 'intermediate' };
+                return null;
             }).filter(Boolean);
 
             roleDocs.push({
@@ -158,10 +169,10 @@ const seedData = async () => {
         });
 
         // Fill remaining roles
-        for (let i = 0; i < 94; i++) {
+        for (let i = 0; i < 20; i++) {
             const domain = getRandomItem(['Healthcare', 'Finance', 'Engineering', 'Education', 'Marketing']);
             const roleName = `${domain}_Specialist_${i}`;
-            const subsetSkills = getRandomSubset(createdSkills, 5).map(s => ({
+            const subsetSkills = getRandomSubset(createdSkills, 4).map(s => ({
                 skillId: s._id,
                 skillName: s.skillName,
                 weight: getRandomInt(1, 5),
@@ -179,16 +190,19 @@ const seedData = async () => {
         const createdRoles = await Role.insertMany(roleDocs);
         console.log(`✅ Inserted ${createdRoles.length} Roles`);
 
-        // 3. Insert Users & Prepare Progress
+        // 3. Insert Users
+        console.log('👥 Preparing Users...');
         const userDocs = [];
         const passwordHash = await bcryptjs.hash('password123', 10);
         const degrees = ['B.Tech', 'M.Sc', 'B.A.', 'Ph.D'];
 
-        // We will store the intended progress objects in an array that matches the valid user index
-        // tempUserProgressMap[i] = [progressObjet1, progressObject2...]
+        // Store progress logic
         const tempUserProgressMap = {};
 
-        for (let i = 0; i < 120; i++) {
+        // Generate fewer users for stability - 50 is enough for demo
+        const USER_COUNT = 50;
+
+        for (let i = 0; i < USER_COUNT; i++) {
             const targetRole = getRandomItem(createdRoles);
             const goalRoleName = targetRole.roleName;
 
@@ -208,6 +222,7 @@ const seedData = async () => {
                     yearsOfExperience: getRandomInt(1, 3)
                 });
 
+                // Add valid progress
                 userProgressList.push({
                     skillId: rs.skillId,
                     skillName: rs.skillName,
@@ -217,23 +232,14 @@ const seedData = async () => {
                 });
             }
 
-            const randomSkills = getRandomSubset(createdSkills, 2);
-            randomSkills.forEach(s => {
-                if (!userHasSkills.find(us => us.skillName === s.skillName)) {
-                    userHasSkills.push({
-                        skillId: s._id,
-                        skillName: s.skillName,
-                        proficiency: 'beginner',
-                        yearsOfExperience: 1
-                    });
-                }
-            });
+            // Readiness
+            const readiness = roleSkills.length > 0 ? Math.floor((numHave / roleSkills.length) * 100) : 0;
 
-            const readiness = Math.floor((numHave / roleSkills.length) * 100) || 0;
+            const userEmail = `user${i}_${Date.now()}@example.com`;
 
             userDocs.push({
                 name: `User_${i}`,
-                email: `user${i}_${Date.now()}@example.com`,
+                email: userEmail,
                 password: passwordHash,
                 degree: getRandomItem(degrees),
                 academicYear: '2024',
@@ -251,17 +257,17 @@ const seedData = async () => {
         console.log(`✅ Inserted ${createdUsers.length} Users`);
 
         // 4. Finalize Progress & Recommendations
+        console.log('📊 Generating Progress & Recommendations...');
         const finalProgressDocs = [];
         const recDocs = [];
 
-        // createdUsers order should match userDocs order in almost all driver versions for insertMany
         createdUsers.forEach((user, index) => {
-            // Retrieve progress intended for this user index
+            // Progress
             const intendedProgress = tempUserProgressMap[index];
             if (intendedProgress) {
                 intendedProgress.forEach(p => {
                     finalProgressDocs.push({
-                        userId: user._id, // LINK THE REAL ID
+                        userId: user._id,
                         skillId: p.skillId,
                         skillName: p.skillName,
                         action: p.action,
@@ -271,7 +277,7 @@ const seedData = async () => {
                 });
             }
 
-            // Create Recommendations
+            // Recommendations
             const role = createdRoles.find(r => r.roleName === user.goalRole);
             if (role) {
                 const userSkillIds = user.currentSkills.map(s => s.skillId.toString());
@@ -291,24 +297,42 @@ const seedData = async () => {
             }
         });
 
-        if (finalProgressDocs.length > 0) {
-            const pRes = await Progress.insertMany(finalProgressDocs);
-            console.log(`✅ Inserted ${pRes.length} Progress Entries`);
+        if (finalProgressDocs.length > 0) await Progress.insertMany(finalProgressDocs);
+        if (recDocs.length > 0) await Recommendation.insertMany(recDocs);
+
+        console.log('✅ Progress & Recommendations Synced');
+        console.log('🎉 Seeding Complete!');
+
+        // LOG CREDENTIALS
+        console.log('\n--- 🔑 LOGIN CREDENTIALS ---');
+        console.log(`User Email: ${createdUsers[0].email}`);
+        console.log(`User Password: password123`);
+
+        // Find Admin
+        const admin = await User.findOne({ role: 'admin' });
+        if (admin) {
+            console.log(`Admin Email: ${admin.email}`);
+            console.log(`Admin Password: (Existing Password)`);
         } else {
-            console.log('⚠️ No Progress Entries generated (unexpected)');
+            // Create Default Admin if missing
+            const adminHash = await bcryptjs.hash('Admin@123', 10);
+            const newAdmin = await User.create({
+                name: 'Super Admin',
+                email: 'admin@skillwill.com',
+                password: adminHash,
+                role: 'admin',
+                domain: 'Administration'
+            });
+            console.log(`Admin Email: ${newAdmin.email}`);
+            console.log(`Admin Password: Admin@123`);
         }
-
-        if (recDocs.length > 0) {
-            const rRes = await Recommendation.insertMany(recDocs);
-            console.log(`✅ Inserted ${rRes.length} Recommendations`);
-        }
-
-        console.log('🎉 Seeding Complete! Data is now logical and inter-connected.');
+        console.log('----------------------------\n');
 
     } catch (error) {
         console.error('❌ Seeding Failed:', error);
     } finally {
         mongoose.connection.close();
+        process.exit(0);
     }
 };
 
