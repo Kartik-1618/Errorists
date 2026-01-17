@@ -115,6 +115,9 @@ export const logProgress = async (req, res) => {
     }
 };
 
+// ... imports
+import { generateAIRecommendations } from '../services/aiService.js';
+
 async function calculateReadiness(userId) {
     try {
         const user = await User.findById(userId);
@@ -133,25 +136,50 @@ async function calculateReadiness(userId) {
         user.readiness = readiness;
         await user.save();
 
-        // Generate Recommendations (Missing Skills)
-        const missingSkills = role.requiredSkills.filter(rs => !userSkillNames.includes(rs.skillName));
+        // --- Recommendations Strategy ---
 
-        // Clear old pending recommendations
+        // 1. Clear old pending recommendations
         await Recommendation.deleteMany({ userId: user._id, status: 'pending' });
 
-        // Create new recommendations
-        const recommendations = missingSkills.map(skill => ({
-            userId: user._id,
-            skillId: skill.skillId,
-            skillName: skill.skillName,
-            priority: skill.weight || 1,
-            learningAction: `Learn ${skill.skillName} (Level: ${skill.proficiencyLevel || 'Beginner'})`,
-            estimatedDays: (skill.weight || 1) * 7,
-            status: 'pending'
-        }));
+        let finalRecommendations = [];
 
-        if (recommendations.length > 0) {
-            await Recommendation.insertMany(recommendations);
+        // 2. Try AI Generation
+        try {
+            const aiRecs = await generateAIRecommendations(user, user.goalRole, user.currentSkills);
+
+            if (aiRecs && Array.isArray(aiRecs) && aiRecs.length > 0) {
+                finalRecommendations = aiRecs.map(rec => ({
+                    userId: user._id,
+                    skillName: rec.skillName,
+                    priority: rec.priority,
+                    learningAction: rec.learningAction,
+                    estimatedDays: rec.estimatedDays,
+                    status: 'pending'
+                }));
+                console.log("✅ Generated AI Recommendations");
+            }
+        } catch (err) {
+            console.error("Failed to generate AI recommendations, falling back to static.", err);
+        }
+
+        // 3. Fallback to Static Logic if AI didn't return anything
+        if (finalRecommendations.length === 0) {
+            const missingSkills = role.requiredSkills.filter(rs => !userSkillNames.includes(rs.skillName));
+
+            finalRecommendations = missingSkills.map(skill => ({
+                userId: user._id,
+                skillId: skill.skillId,
+                skillName: skill.skillName,
+                priority: skill.weight || 1,
+                learningAction: `Learn ${skill.skillName} (Level: ${skill.proficiencyLevel || 'Beginner'})`,
+                estimatedDays: (skill.weight || 1) * 7,
+                status: 'pending'
+            }));
+            console.log("⚠️ Used Static Recommendations");
+        }
+
+        if (finalRecommendations.length > 0) {
+            await Recommendation.insertMany(finalRecommendations);
         }
 
     } catch (error) {
