@@ -2,10 +2,23 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import dotenv from 'dotenv';
 dotenv.config();
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+// Initialize lazily or check for key to prevent crash at startup
+const getGenAI = () => {
+    if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'your_gemini_api_key_here') {
+        console.warn("⚠️ GEMINI_API_KEY is not set. AI features will be disabled.");
+        return null;
+    }
+    return new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+};
+
+const genAI = getGenAI();
 
 export const generateAIRecommendations = async (userProfile, goalRole, userSkills) => {
     try {
+        if (!genAI) {
+            console.warn("Skipping AI generation: API Key missing.");
+            return []; // Return empty suggestions or fallback
+        }
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
         const prompt = `

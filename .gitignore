@@ -1,15 +1,3 @@
 node_modules
 .env
-*.log
-seed_log.txt
-output.txt
-output_2.txt
-new.txt
-dist/
-build/
-coverage/
-.DS_Store
-.vscode/
-tmp/
-
 
