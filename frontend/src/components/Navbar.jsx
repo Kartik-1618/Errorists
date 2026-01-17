@@ -3,7 +3,8 @@ export default function Navbar({ user, onLogout }) {
         <nav className="navbar navbar-expand-lg navbar-dark navbar-custom">
             <div className="container-fluid">
                 <span className="navbar-brand">
-                    💡 SkillWill
+                    <img src="/logo.png" alt="Logo" />
+                    SkillWill
                     {user?.role === 'admin' && <span className="badge-admin">ADMIN</span>}
                 </span>
                 <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">

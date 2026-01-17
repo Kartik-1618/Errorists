@@ -15,7 +15,8 @@
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
-    "mongoose": "^9.1.4"
+    "mongoose": "^9.1.4",
+    "skillwill": "file:.."
   },
   "devDependencies": {
     "nodemon": "^3.0.1"

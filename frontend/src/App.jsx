@@ -9,6 +9,15 @@ function App() {
     const [user, setUser] = useState(null);
     const [token, setToken] = useState(localStorage.getItem('token'));
 
+    const [showSplash, setShowSplash] = useState(true);
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setShowSplash(false);
+        }, 2500); // Show splash for 2.5 seconds
+        return () => clearTimeout(timer);
+    }, []);
+
     useEffect(() => {
         if (token) {
             const storedUser = localStorage.getItem('user');
@@ -25,6 +34,15 @@ function App() {
         setUser(null);
     };
 
+    if (showSplash) {
+        return (
+            <div className="splash-screen">
+                <img src="/logo.png" alt="SkillWill Logo" className="splash-logo" />
+                <div className="splash-text">SkillWill</div>
+            </div>
+        );
+    }
+
     if (!token) {
         return <Login setToken={setToken} setUser={setUser} />;
     }
@@ -32,7 +50,8 @@ function App() {
     return (
         <div className="App">
             <Navbar user={user} onLogout={handleLogout} />
-            {user?.role === 'admin' ? <AdminDashboard /> : <UserDashboard user={user} />}
+            {user?.role === 'admin' && <AdminDashboard />}
+            {user?.role !== 'admin' && <UserDashboard user={user} />}
         </div>
     );
 }
