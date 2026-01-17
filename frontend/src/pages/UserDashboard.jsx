@@ -183,13 +183,28 @@ export default function UserDashboard({ user }) {
                                 <form onSubmit={addSkill}>
                                     <div className="mb-3">
                                         <label className="form-label">Skill Name</label>
-                                        <input
-                                            type="text"
+                                        <select
                                             className="form-control"
-                                            placeholder="e.g., Python, SQL"
                                             value={newSkill}
                                             onChange={(e) => setNewSkill(e.target.value)}
-                                        />
+                                            disabled={!goalRole} // Disable if no goal set
+                                        >
+                                            <option value="">Select a Skill</option>
+
+                                            {/* Filter available roles to find the selected goal, then map its required skills */}
+                                            {availableRoles.find(r => r.roleName === goalRole)?.requiredSkills?.map((skill, idx) => (
+                                                <option key={idx} value={skill.skillName}>
+                                                    {skill.skillName}
+                                                </option>
+                                            ))}
+
+                                            {(!goalRole || !availableRoles.find(r => r.roleName === goalRole)?.requiredSkills?.length) && (
+                                                <option value="" disabled>Select a Goal Role first</option>
+                                            )}
+                                        </select>
+                                        {goalRole && (
+                                            <small className="text-muted">Skills recommended for {goalRole}</small>
+                                        )}
                                     </div>
                                     <div className="mb-3">
                                         <label className="form-label">Proficiency</label>
