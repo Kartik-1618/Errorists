@@ -12,6 +12,8 @@ export default function AdminDashboard() {
     const [newRole, setNewRole] = useState({ roleName: '', domain: '' });
     const [activeTab, setActiveTab] = useState('dashboard');
 
+    const [loading, setLoading] = useState(false);
+
     const token = localStorage.getItem('token');
 
     useEffect(() => {
@@ -48,22 +50,25 @@ export default function AdminDashboard() {
             alert('Skill added successfully!');
         } catch (error) {
             console.error('Error adding skill:', error);
-            alert('Failed to add skill.');
+            alert(error.response?.data?.error || 'Failed to add skill.');
         }
     };
 
     const addRole = async (e) => {
         e.preventDefault();
+        setLoading(true);
         try {
-            await axios.post('/api/admin/add-role', newRole, {
+            const res = await axios.post('/api/admin/add-role', newRole, {
                 headers: { 'Authorization': `Bearer ${token}` },
             });
             setNewRole({ roleName: '', domain: '' });
             loadDashboardData();
-            alert('Role added successfully!');
+            alert(res.data.message || 'Role added successfully!');
         } catch (error) {
             console.error('Error adding role:', error);
-            alert('Failed to add role.');
+            alert(error.response?.data?.error || 'Failed to add role.');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -274,7 +279,9 @@ export default function AdminDashboard() {
                                                     onChange={(e) => setNewRole({ ...newRole, domain: e.target.value })}
                                                 />
                                             </div>
-                                            <button type="submit" className="btn btn-primary w-100">Create Role</button>
+                                            <button type="submit" className="btn btn-primary w-100" disabled={loading}>
+                                                {loading ? 'Creating & Generating Skills...' : 'Create Role'}
+                                            </button>
                                         </form>
                                     </div>
                                 </div>

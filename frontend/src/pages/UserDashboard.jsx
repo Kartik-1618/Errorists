@@ -67,22 +67,32 @@ export default function UserDashboard({ user }) {
 
     const updateGoalRole = async (e) => {
         e.preventDefault();
+        setLoading(true);
         try {
-            await axios.put(
+            const res = await axios.put(
                 '/api/user/profile',
                 { goalRole },
                 { headers: { 'Authorization': `Bearer ${token}` } }
             );
-            loadUserData();
+            // Immediate update from response
+            setProfile(res.data.user);
+            setRecommendations(res.data.recommendations);
+
+            // Reload all data to ensure Roles are updated if AI generated them
+            await loadUserData();
+
             alert('Goal updated successfully!');
         } catch (error) {
             console.error('Error updating goal:', error);
+            alert('Error updating goal');
+        } finally {
+            setLoading(false);
         }
     };
 
     const logProgress = async (skillName) => {
         try {
-            await axios.post(
+            const res = await axios.post(
                 '/api/user/progress',
                 {
                     skillName,
@@ -92,6 +102,9 @@ export default function UserDashboard({ user }) {
                 },
                 { headers: { 'Authorization': `Bearer ${token}` } }
             );
+            // Immediate update
+            setProfile(res.data.user);
+            setRecommendations(res.data.recommendations);
             loadUserData();
         } catch (error) {
             console.error('Error logging progress:', error);

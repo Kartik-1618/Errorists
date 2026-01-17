@@ -19,7 +19,7 @@ export const generateAIRecommendations = async (userProfile, goalRole, userSkill
             console.warn("Skipping AI generation: API Key missing.");
             return []; // Return empty suggestions or fallback
         }
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
         const prompt = `
             Act as a career coach.
@@ -49,5 +49,61 @@ export const generateAIRecommendations = async (userProfile, goalRole, userSkill
     } catch (error) {
         console.error("AI Recommendation Error:", error);
         return null; // Return null to fall back to static logic if needed
+    }
+};
+
+export const generateRoleSkills = async (roleName, domain) => {
+    try {
+        if (!genAI) return null;
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+        const prompt = `
+            Act as an expert job market analyst.
+            I need to define the requirements for a job role: "${roleName}" in the domain of "${domain || 'General Technology'}".
+            
+            Please list top 5-8 essential technical skills required for this role.
+            Also provide a brief description of the role itself.
+
+            Return ONLY a valid JSON object with the following structure:
+            {
+                "roleDescription": "A concise description of the role...",
+                "skills": [
+                    {
+                        "skillName": "Name of the skill (e.g. Python)",
+                        "category": "Category (e.g. Programming, Cloud, Data Science)",
+                        "difficulty": "One of: beginner, intermediate, advanced",
+                        "proficiencyLevel": "One of: beginner, intermediate, advanced (required level)",
+                        "weight": "Integer 1-5 (importance)",
+                        "description": "Short description of the skill"
+                    }
+                ]
+            }
+            Do not include markdown formatting.
+        `;
+
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text().replace(/```json/g, '').replace(/```/g, '').trim();
+        console.log("🤖 AI Raw Response:", text); // Debug log
+
+        const openBrace = text.indexOf('{');
+        const closeBrace = text.lastIndexOf('}');
+
+        if (openBrace === -1 || closeBrace === -1) {
+            throw new Error("AI response did not contain JSON.");
+        }
+
+        const lastPart = text.substring(openBrace, closeBrace + 1);
+        return JSON.parse(lastPart);
+    } catch (error) {
+        console.error("AI Role Generation Error:", error.message);
+        if (error.response) {
+            // Log detailed API error if available
+            try {
+                const body = await error.response.text(); // or .json() depending on SDK
+                console.error("AI API Error Body:", body);
+            } catch (e) { console.error("Could not read error body"); }
+        }
+        return null;
     }
 };

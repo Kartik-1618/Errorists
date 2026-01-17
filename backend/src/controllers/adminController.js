@@ -35,17 +35,79 @@ export const approveSkill = async (req, res) => {
     }
 };
 
+import { generateRoleSkills } from '../services/aiService.js';
+
 export const addRole = async (req, res) => {
     try {
         const { roleName, domain, description } = req.body;
+
+        // 1. Create the role first (Base)
         const newRole = new Role({
             roleName,
             domain,
             description,
             requiredSkills: [],
         });
+
+        // 2. Try to auto-populate skills via AI
+        try {
+            console.log(`🤖 Auto-generating skills for new role: ${roleName}...`);
+            const aiData = await generateRoleSkills(roleName, domain);
+
+            if (aiData && aiData.skills && aiData.skills.length > 0) {
+                if (!newRole.description && aiData.roleDescription) {
+                    newRole.description = aiData.roleDescription;
+                }
+
+                const aiSkillsToAdd = [];
+                for (const aiSkill of aiData.skills) {
+                    // Check if Skill exists globally (Case Insensitive)
+                    // We use regex to match exactly but case-insensitively
+                    let dbSkill = await Skill.findOne({
+                        skillName: { $regex: new RegExp(`^${aiSkill.skillName.trim()}$`, 'i') }
+                    });
+
+                    if (!dbSkill) {
+                        try {
+                            dbSkill = await Skill.create({
+                                skillName: aiSkill.skillName.trim(), // Normalize
+                                category: aiSkill.category || 'General',
+                                difficulty: aiSkill.difficulty || 'intermediate',
+                                description: aiSkill.description || `Proficiency in ${aiSkill.skillName}`,
+                                relatedRole: roleName
+                            });
+                            console.log(`+ Created new skill by AI: ${dbSkill.skillName}`);
+                        } catch (e) {
+                            // If create failed (race condition), try finding it again
+                            dbSkill = await Skill.findOne({
+                                skillName: { $regex: new RegExp(`^${aiSkill.skillName.trim()}$`, 'i') }
+                            });
+                        }
+                    }
+
+                    if (dbSkill) {
+                        aiSkillsToAdd.push({
+                            skillId: dbSkill._id,
+                            skillName: dbSkill.skillName, // Use DB casing
+                            weight: aiSkill.weight || 3,
+                            proficiencyLevel: aiSkill.proficiencyLevel || 'intermediate'
+                        });
+                    }
+                }
+                newRole.requiredSkills = aiSkillsToAdd;
+                console.log(`✅ Auto-populated ${aiSkillsToAdd.length} skills for ${roleName}`);
+            } else {
+                throw new Error("AI returned no skills. Please try again or check API quota.");
+            }
+        } catch (aiError) {
+            console.error("AI Role Generation Failed for Admin:", aiError);
+            return res.status(503).json({
+                error: `AI Generation Failed: ${aiError.message || 'Unknown Error'}. Please try again.`
+            });
+        }
+
         await newRole.save();
-        res.json({ message: 'Role added', role: newRole });
+        res.json({ message: 'Role added (populated by AI)', role: newRole });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
