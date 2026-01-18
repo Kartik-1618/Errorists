@@ -1,20 +1,21 @@
 import { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import './App.css';
 import Navbar from './components/Navbar';
 import Login from './pages/Login';
 import UserDashboard from './pages/UserDashboard';
 import AdminDashboard from './pages/AdminDashboard';
+import UserProfile from './pages/UserProfile';
 
 function App() {
     const [user, setUser] = useState(null);
     const [token, setToken] = useState(localStorage.getItem('token'));
-
     const [showSplash, setShowSplash] = useState(true);
 
     useEffect(() => {
         const timer = setTimeout(() => {
             setShowSplash(false);
-        }, 2500); // Show splash for 2.5 seconds
+        }, 2500);
         return () => clearTimeout(timer);
     }, []);
 
@@ -24,6 +25,8 @@ function App() {
             if (storedUser) {
                 setUser(JSON.parse(storedUser));
             }
+        } else {
+            setUser(null);
         }
     }, [token]);
 
@@ -43,16 +46,34 @@ function App() {
         );
     }
 
-    if (!token) {
-        return <Login setToken={setToken} setUser={setUser} />;
-    }
-
     return (
-        <div className="App">
-            <Navbar user={user} onLogout={handleLogout} />
-            {user?.role === 'admin' && <AdminDashboard />}
-            {user?.role !== 'admin' && <UserDashboard user={user} />}
-        </div>
+        <Router>
+            <div className="App">
+                {token && <Navbar user={user} onLogout={handleLogout} />}
+                <Routes>
+                    <Route
+                        path="/login"
+                        element={!token ? <Login setToken={setToken} setUser={setUser} /> : <Navigate to="/" />}
+                    />
+                    <Route
+                        path="/"
+                        element={
+                            token ? (
+                                user?.role === 'admin' ? <AdminDashboard /> : <UserDashboard user={user} />
+                            ) : (
+                                <Navigate to="/login" />
+                            )
+                        }
+                    />
+                    <Route
+                        path="/profile"
+                        element={token ? <UserProfile user={user} /> : <Navigate to="/login" />}
+                    />
+                    {/* Fallback */}
+                    <Route path="*" element={<Navigate to="/" />} />
+                </Routes>
+            </div>
+        </Router>
     );
 }
 

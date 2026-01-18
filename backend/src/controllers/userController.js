@@ -25,14 +25,23 @@ export const getRoles = async (req, res) => {
 
 export const updateProfile = async (req, res) => {
     try {
-        const { goalRole } = req.body;
+        const { name, degree, academicYear, domain, goalRole } = req.body;
+
+        const updates = {};
+        if (name) updates.name = name;
+        if (degree) updates.degree = degree;
+        if (academicYear) updates.academicYear = academicYear;
+        if (domain) updates.domain = domain;
+        if (goalRole) updates.goalRole = goalRole;
+
         const user = await User.findByIdAndUpdate(
             req.user.userId,
-            { goalRole },
+            updates,
             { new: true }
         );
 
-        // Recalculate readiness and trigger recommendations immediately
+        // Only recalculate if goalRole changed, or always? 
+        // Always is safer to ensure consistency if domain changes affecting future logic.
         await calculateReadiness(user._id);
 
         // Fetch fresh data to return
@@ -40,6 +49,29 @@ export const updateProfile = async (req, res) => {
         const recommendations = await Recommendation.find({ userId: req.user.userId }).sort({ priority: -1 });
 
         res.json({ message: 'Profile updated', user: updatedUser, recommendations });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+export const changePassword = async (req, res) => {
+    try {
+        const { oldPassword, newPassword } = req.body;
+        if (!oldPassword || !newPassword) {
+            return res.status(400).json({ error: 'Please provide both old and new passwords' });
+        }
+
+        const user = await User.findById(req.user.userId);
+        const isMatch = await user.comparePassword(oldPassword);
+
+        if (!isMatch) {
+            return res.status(401).json({ error: 'Incorrect old password' });
+        }
+
+        user.password = newPassword; // Pre-save hook will hash this
+        await user.save();
+
+        res.json({ message: 'Password changed successfully' });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -231,6 +263,17 @@ const PROFICIENCY_MAP = {
     'beginner': 1,
     'intermediate': 2,
     'advanced': 3
+};
+
+export const getAvailableDomains = async (req, res) => {
+    try {
+        const domains = await Role.distinct('domain');
+        // Filter out empty/null and sort
+        const cleanDomains = domains.filter(d => d).sort();
+        res.json(cleanDomains);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 };
 
 async function calculateReadiness(userId) {

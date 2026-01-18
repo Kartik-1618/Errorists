@@ -214,18 +214,31 @@ export default function UserDashboard({ user }) {
                                 <form onSubmit={updateGoalRole}>
                                     <div className="mb-3">
                                         <label className="form-label">Target Role</label>
+                                        {profile?.domain && (
+                                            <small className="text-muted d-block mb-1">
+                                                Recommended for your domain: <strong>{profile.domain}</strong>
+                                            </small>
+                                        )}
                                         <select
                                             className="form-control"
                                             value={goalRole}
                                             onChange={(e) => setGoalRole(e.target.value)}
                                         >
                                             <option value="">Select Target Role</option>
-                                            {availableRoles.map((role) => (
-                                                <option key={role._id} value={role.roleName}>
-                                                    {role.roleName}
-                                                </option>
-                                            ))}
+                                            {availableRoles
+                                                .filter(role => !profile?.domain || (role.domain && role.domain.toLowerCase() === profile.domain.toLowerCase()))
+                                                .sort((a, b) => a.roleName.localeCompare(b.roleName)) // Alphabetical sort
+                                                .map((role) => (
+                                                    <option key={role._id} value={role.roleName}>
+                                                        {role.roleName}
+                                                    </option>
+                                                ))}
                                         </select>
+                                        {profile?.domain && availableRoles.filter(role => role.domain && role.domain.toLowerCase() === profile.domain.toLowerCase()).length === 0 && (
+                                            <div className="text-danger small mt-1">
+                                                No roles found for this domain yet.
+                                            </div>
+                                        )}
                                     </div>
                                     <button type="submit" className="btn btn-primary w-100">Update Goal</button>
                                 </form>

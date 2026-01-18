@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 
 export default function Login({ setToken, setUser }) {
@@ -12,6 +12,22 @@ export default function Login({ setToken, setUser }) {
         domain: '',
     });
     const [error, setError] = useState('');
+    const [signupDomains, setSignupDomains] = useState([]);
+
+    useEffect(() => {
+        if (activeTab === 'signup') {
+            fetchDomains();
+        }
+    }, [activeTab]);
+
+    const fetchDomains = async () => {
+        try {
+            const res = await axios.get('/api/user/domains');
+            setSignupDomains(res.data);
+        } catch (err) {
+            console.error("Failed to fetch domains", err);
+        }
+    };
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -123,10 +139,9 @@ export default function Login({ setToken, setUser }) {
                                                 onChange={handleChange}
                                             >
                                                 <option>Select Your Domain</option>
-                                                <option>Healthcare</option>
-                                                <option>Finance</option>
-                                                <option>Technology</option>
-                                                <option>Marketing</option>
+                                                {signupDomains.map(d => (
+                                                    <option key={d} value={d}>{d}</option>
+                                                ))}
                                                 <option>Other</option>
                                             </select>
                                         </div>

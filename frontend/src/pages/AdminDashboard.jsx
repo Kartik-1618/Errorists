@@ -8,7 +8,7 @@ export default function AdminDashboard() {
     const [allRoles, setAllRoles] = useState([]);
 
     // Form States
-    const [newSkill, setNewSkill] = useState({ skillName: '', category: '', difficulty: 'beginner' });
+    const [newSkill, setNewSkill] = useState({ skillName: '', domain: '', relatedRole: '', difficulty: 'beginner' });
     const [newRole, setNewRole] = useState({ roleName: '', domain: '' });
     const [activeTab, setActiveTab] = useState('dashboard');
 
@@ -45,7 +45,7 @@ export default function AdminDashboard() {
             await axios.post('/api/admin/approve-skill', newSkill, {
                 headers: { 'Authorization': `Bearer ${token}` },
             });
-            setNewSkill({ skillName: '', category: '', difficulty: 'beginner' });
+            setNewSkill({ skillName: '', domain: '', relatedRole: '', difficulty: 'beginner' });
             loadDashboardData();
             alert('Skill added successfully!');
         } catch (error) {
@@ -189,14 +189,27 @@ export default function AdminDashboard() {
                                                 />
                                             </div>
                                             <div className="mb-3">
-                                                <label className="form-label">Category</label>
-                                                <input
-                                                    type="text"
+                                                <label className="form-label">Related Role</label>
+                                                <select
                                                     className="form-control"
-                                                    placeholder="Select Category"
-                                                    value={newSkill.category}
-                                                    onChange={(e) => setNewSkill({ ...newSkill, category: e.target.value })}
-                                                />
+                                                    value={newSkill.relatedRole}
+                                                    onChange={(e) => {
+                                                        const selectedRole = allRoles.find(r => r.roleName === e.target.value);
+                                                        setNewSkill({
+                                                            ...newSkill,
+                                                            relatedRole: e.target.value,
+                                                            domain: selectedRole ? selectedRole.domain : ''
+                                                        });
+                                                    }}
+                                                >
+                                                    <option value="">Select Role for Skill</option>
+                                                    {allRoles.map((role) => (
+                                                        <option key={role._id} value={role.roleName}>
+                                                            {role.roleName} ({role.domain})
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                {allRoles.length === 0 && <small className="text-muted">Create a Role first.</small>}
                                             </div>
                                             <div className="mb-3">
                                                 <label className="form-label">Difficulty Level</label>
@@ -224,7 +237,7 @@ export default function AdminDashboard() {
                                             <thead>
                                                 <tr>
                                                     <th>Skill Name</th>
-                                                    <th>Category</th>
+                                                    <th>Related Role</th>
                                                     <th>Difficulty</th>
                                                 </tr>
                                             </thead>
@@ -232,7 +245,7 @@ export default function AdminDashboard() {
                                                 {allSkills.slice(0, 10).map((skill, idx) => (
                                                     <tr key={idx}>
                                                         <td>{skill.skillName}</td>
-                                                        <td>{skill.category}</td>
+                                                        <td>{skill.relatedRole || skill.domain || '-'}</td>
                                                         <td>
                                                             <span className={`badge bg-${skill.difficulty === 'beginner' ? 'success' : skill.difficulty === 'intermediate' ? 'warning' : 'danger'}`}>
                                                                 {skill.difficulty}

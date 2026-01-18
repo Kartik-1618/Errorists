@@ -21,10 +21,11 @@ export const getAdminDashboard = async (req, res) => {
 
 export const approveSkill = async (req, res) => {
     try {
-        const { skillName, category, description, difficulty } = req.body;
+        const { skillName, domain, relatedRole, description, difficulty } = req.body;
         const newSkill = new Skill({
             skillName,
-            category,
+            domain,
+            relatedRole,
             description,
             difficulty,
         });
@@ -71,7 +72,7 @@ export const addRole = async (req, res) => {
                         try {
                             dbSkill = await Skill.create({
                                 skillName: aiSkill.skillName.trim(), // Normalize
-                                category: aiSkill.category || 'General',
+                                domain: domain || 'General', // Inherit Role's Domain
                                 difficulty: aiSkill.difficulty || 'intermediate',
                                 description: aiSkill.description || `Proficiency in ${aiSkill.skillName}`,
                                 relatedRole: roleName
