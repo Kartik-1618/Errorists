@@ -56,6 +56,25 @@ export const deleteSkill = async (req, res) => {
     }
 };
 
+export const deleteRole = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const role = await Role.findById(id);
+        if (!role) {
+            return res.status(404).json({ error: 'Role not found' });
+        }
+
+        // Cascade delete skills associated with this role
+        await Skill.deleteMany({ relatedRole: role.roleName });
+
+        await Role.findByIdAndDelete(id);
+
+        res.json({ message: 'Role and associated skills deleted successfully.' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
 import { generateRoleSkills } from '../services/aiService.js';
 
 export const addRole = async (req, res) => {

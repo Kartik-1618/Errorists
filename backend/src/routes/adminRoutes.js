@@ -4,6 +4,7 @@ import {
     getAdminDashboard,
     approveSkill,
     deleteSkill,
+    deleteRole,
     addRole,
     addSkillToRole,
     getAllUsers,
@@ -16,6 +17,7 @@ const router = express.Router();
 router.get('/dashboard', verifyToken, verifyAdmin, getAdminDashboard);
 router.post('/approve-skill', verifyToken, verifyAdmin, approveSkill);
 router.delete('/skill/:id', verifyToken, verifyAdmin, deleteSkill);
+router.delete('/role/:id', verifyToken, verifyAdmin, deleteRole);
 router.post('/add-role', verifyToken, verifyAdmin, addRole);
 router.post('/add-skill-to-role', verifyToken, verifyAdmin, addSkillToRole);
 router.get('/users', verifyToken, verifyAdmin, getAllUsers);

@@ -113,6 +113,23 @@ export default function AdminDashboard() {
         }
     };
 
+    const deleteRoleHandler = async (e, id, roleName) => {
+        e.stopPropagation();
+        if (window.confirm(`WARNING: Deleting role '${roleName}' will ALSO DELETE ALL associated skills.\n\nAre you sure you want to proceed?`)) {
+            try {
+                await axios.delete(`/api/admin/role/${id}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                setAllRoles(prev => prev.filter(r => r._id !== id));
+                setAllSkills(prev => prev.filter(s => s.relatedRole !== roleName));
+                alert(`Role '${roleName}' and associated skills were deleted.`);
+            } catch (error) {
+                console.error("Failed to delete Role", error);
+                alert("Failed to delete Role.");
+            }
+        }
+    };
+
     return (
         <div className="container-fluid container-main">
             <div className="container">
@@ -442,18 +459,28 @@ export default function AdminDashboard() {
                                                 <tr>
                                                     <th>Role Name</th>
                                                     <th>Domain</th>
-                                                    <th>Skills Req.</th>
+                                                    <th className="text-center">Skills Req.</th>
+                                                    <th className="text-center" style={{ width: '80px' }}>Action</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 {allRoles.slice(0, 10).map((role, idx) => (
-                                                    <tr key={idx}>
+                                                    <tr key={role._id || idx}>
                                                         <td>{role.roleName}</td>
                                                         <td>{role.domain}</td>
-                                                        <td>{role.requiredSkills?.length || 0}</td>
+                                                        <td className="text-center">{role.requiredSkills?.length || 0}</td>
+                                                        <td className="text-center">
+                                                            <button
+                                                                className="btn btn-sm btn-outline-danger py-0"
+                                                                onClick={(e) => deleteRoleHandler(e, role._id, role.roleName)}
+                                                                title="Delete Role & Skills"
+                                                            >
+                                                                🗑️
+                                                            </button>
+                                                        </td>
                                                     </tr>
                                                 ))}
-                                                {allRoles.length === 0 && <tr><td colSpan="3">No roles found.</td></tr>}
+                                                {allRoles.length === 0 && <tr><td colSpan="4">No roles found.</td></tr>}
                                             </tbody>
                                         </table>
                                         {allRoles.length > 10 && <small className="text-muted">Showing 10 of {allRoles.length} roles</small>}
