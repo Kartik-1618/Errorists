@@ -1,10 +1,10 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
-import User from './src/models/User.js';
-import Skill from './src/models/Skill.js';
-import Role from './src/models/Role.js';
-import Recommendation from './src/models/Recommendation.js';
-import Progress from './src/models/Progress.js';
+import User from '../src/models/User.js';
+import Skill from '../src/models/Skill.js';
+import Role from '../src/models/Role.js';
+import Recommendation from '../src/models/Recommendation.js';
+import Progress from '../src/models/Progress.js';
 import bcryptjs from 'bcryptjs';
 
 dotenv.config();

@@ -117,30 +117,64 @@ body {
 /* Navbar */
 .navbar-custom {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  padding: 1rem 0;
 }
 
 .navbar-brand {
-  font-size: 1.5rem;
+  font-size: 1.6rem;
   font-weight: 700;
   color: white !important;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.navbar-custom .nav-link {
+  color: rgba(255, 255, 255, 0.85) !important;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  border-bottom: none;
+  /* Override global */
+}
+
+.navbar-custom .nav-link:hover {
+  color: white !important;
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(0);
+  /* Reset global transform if needed, or keep subtle */
 }
 
 /* Buttons */
 .btn-primary {
-  background-color: var(--primary-color);
-  border-color: var(--primary-color);
+  background: linear-gradient(135deg, var(--primary-color) 0%, #d81b60 100%);
+  border: none;
   border-radius: 8px;
-  /* Demo style */
   font-weight: 600;
   transition: all 0.3s;
   padding: 10px 24px;
+  box-shadow: 0 4px 10px rgba(233, 30, 99, 0.3);
 }
 
 .btn-primary:hover {
-  background-color: #c2185b;
-  border-color: #c2185b;
   transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(233, 30, 99, 0.4);
+}
+
+.avatar-circle {
+  width: 32px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  color: white;
+  font-size: 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .btn-success {
