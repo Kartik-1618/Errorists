@@ -1,5 +1,28 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import {
+    Chart as ChartJS,
+    CategoryScale,
+    LinearScale,
+    BarElement,
+    PointElement,
+    LineElement,
+    Title,
+    Tooltip,
+    Legend,
+} from 'chart.js';
+import { Bar, Line } from 'react-chartjs-2';
+
+ChartJS.register(
+    CategoryScale,
+    LinearScale,
+    BarElement,
+    PointElement,
+    LineElement,
+    Title,
+    Tooltip,
+    Legend
+);
 
 export default function UserDashboard({ user }) {
     const [profile, setProfile] = useState(null);
@@ -136,6 +159,75 @@ export default function UserDashboard({ user }) {
     };
 
     if (loading) return <div className="container mt-5 text-center"><div className="spinner-border text-primary"></div></div>;
+
+    // --- Analytics Logic ---
+    const targetRoleData = availableRoles.find(r => r.roleName === goalRole);
+    const requiredSkills = targetRoleData?.requiredSkills || [];
+    const mySkillNames = profile?.currentSkills?.map(s => s.skillName.toLowerCase()) || [];
+
+    // 1. Skill Gap Chart Data
+    const skillGapLabels = requiredSkills.map(s => s.skillName);
+    const skillGapDataPoints = requiredSkills.map(s => mySkillNames.includes(s.skillName.toLowerCase()) ? 1 : 0);
+    const skillGapBackgrounds = skillGapDataPoints.map(val => val === 1 ? 'rgba(75, 192, 192, 0.7)' : 'rgba(255, 99, 132, 0.7)');
+
+    const skillGapChartData = {
+        labels: skillGapLabels.length ? skillGapLabels : ['No Goal Set'],
+        datasets: [{
+            label: 'Skill Status',
+            data: skillGapLabels.length ? skillGapDataPoints : [0],
+            backgroundColor: skillGapBackgrounds,
+        }]
+    };
+
+    const skillGapOptions = {
+        responsive: true,
+        scales: {
+            y: {
+                beginAtZero: true,
+                max: 1,
+                ticks: {
+                    stepSize: 1,
+                    callback: function (val) { return val === 1 ? 'Present' : val === 0 ? 'Missing' : ''; }
+                }
+            }
+        },
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                callbacks: {
+                    label: function (context) { return context.raw === 1 ? 'Present' : 'Missing'; }
+                }
+            }
+        }
+    };
+
+    // 2. Summary Cards Data
+    const totalReq = requiredSkills.length;
+    const matchedCount = requiredSkills.filter(s => mySkillNames.includes(s.skillName.toLowerCase())).length;
+    const missingCount = totalReq - matchedCount;
+
+    // 3. Progress Chart Data
+    const sortedProgress = [...(progress || [])].sort((a, b) => new Date(a.completionDate || a.createdAt) - new Date(b.completionDate || b.createdAt));
+
+    let cumulativeMatched = 0;
+    const progressLabels = sortedProgress.map(p => new Date(p.completionDate || p.createdAt).toLocaleDateString());
+    const progressDataPoints = sortedProgress.map(p => {
+        const isRequired = requiredSkills.some(rs => rs.skillName.toLowerCase() === p.skillName.toLowerCase());
+        if (isRequired) cumulativeMatched++;
+        return totalReq > 0 ? Math.round((cumulativeMatched / totalReq) * 100) : 0;
+    });
+
+    const progressChartData = {
+        labels: progressLabels,
+        datasets: [{
+            label: 'Readiness % Over Time',
+            data: progressDataPoints,
+            borderColor: 'rgb(53, 162, 235)',
+            backgroundColor: 'rgba(53, 162, 235, 0.5)',
+            tension: 0.3,
+            fill: true
+        }]
+    };
 
     return (
         <div className="container-fluid container-main">
@@ -326,6 +418,63 @@ export default function UserDashboard({ user }) {
                                         <p className="text-muted small">No skills added yet</p>
                                     )}
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* 📊 Analytics Section */}
+                <div className="row mb-4">
+                    <div className="col-12">
+                        <h3 style={{ color: '#2c3e50', fontWeight: 700, marginBottom: '1.5rem' }}>📊 Skill Analytics</h3>
+                    </div>
+
+                    {/* Summary Cards */}
+                    <div className="col-md-4 mb-3">
+                        <div className="card text-center h-100 border-primary" style={{ backgroundColor: '#f0f7ff' }}>
+                            <div className="card-body">
+                                <h5 className="card-title text-primary">Total Required</h5>
+                                <p className="display-4 fw-bold">{totalReq}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="col-md-4 mb-3">
+                        <div className="card text-center h-100 border-success" style={{ backgroundColor: '#f0fff4' }}>
+                            <div className="card-body">
+                                <h5 className="card-title text-success">Matches</h5>
+                                <p className="display-4 fw-bold">{matchedCount}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="col-md-4 mb-3">
+                        <div className="card text-center h-100 border-danger" style={{ backgroundColor: '#fff0f0' }}>
+                            <div className="card-body">
+                                <h5 className="card-title text-danger">Missing</h5>
+                                <p className="display-4 fw-bold">{missingCount}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Charts */}
+                    <div className="col-md-6 mb-4">
+                        <div className="card h-100 shadow-sm">
+                            <div className="card-header bg-white fw-bold">Skill Gap Analysis</div>
+                            <div className="card-body">
+                                <Bar data={skillGapChartData} options={skillGapOptions} />
+                            </div>
+                        </div>
+                    </div>
+                    <div className="col-md-6 mb-4">
+                        <div className="card h-100 shadow-sm">
+                            <div className="card-header bg-white fw-bold">Progress Over Time</div>
+                            <div className="card-body">
+                                {progressDataPoints.length > 0 ? (
+                                    <Line data={progressChartData} />
+                                ) : (
+                                    <div className="text-center text-muted py-5">
+                                        No progress history available yet.
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
