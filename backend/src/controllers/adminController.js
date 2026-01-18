@@ -21,7 +21,18 @@ export const getAdminDashboard = async (req, res) => {
 
 export const approveSkill = async (req, res) => {
     try {
-        const { skillName, domain, relatedRole, description, difficulty } = req.body;
+        const { id, skillName, domain, relatedRole, description, difficulty } = req.body;
+
+        if (id) {
+            // Update existing skill
+            const updatedSkill = await Skill.findByIdAndUpdate(
+                id,
+                { skillName, domain, relatedRole, description, difficulty },
+                { new: true }
+            );
+            return res.json({ message: 'Skill updated', skill: updatedSkill });
+        }
+
         const newSkill = new Skill({
             skillName,
             domain,
@@ -31,6 +42,15 @@ export const approveSkill = async (req, res) => {
         });
         await newSkill.save();
         res.json({ message: 'Skill approved', skill: newSkill });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+export const deleteSkill = async (req, res) => {
+    try {
+        await Skill.findByIdAndDelete(req.params.id);
+        res.json({ message: 'Skill deleted' });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

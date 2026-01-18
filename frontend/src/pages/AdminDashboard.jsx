@@ -8,9 +8,26 @@ export default function AdminDashboard() {
     const [allRoles, setAllRoles] = useState([]);
 
     // Form States
-    const [newSkill, setNewSkill] = useState({ skillName: '', domain: '', relatedRole: '', difficulty: 'beginner' });
+    const [newSkill, setNewSkill] = useState({ id: null, skillName: '', domain: '', relatedRole: '', difficulty: 'beginner' });
     const [newRole, setNewRole] = useState({ roleName: '', domain: '' });
     const [activeTab, setActiveTab] = useState('dashboard');
+
+    // Skill Management States
+    // Skill Management States
+    const [skillFilterRole, setSkillFilterRole] = useState('');
+    const [skillFilterDomain, setSkillFilterDomain] = useState('');
+    const [skillPage, setSkillPage] = useState(1);
+    const ITEMS_PER_PAGE = 10;
+
+    // Derived Logic
+    const uniqueDomains = [...new Set(allRoles.map(r => r.domain).filter(Boolean))].sort();
+
+    const filteredSkills = allSkills.filter(s =>
+        (!skillFilterRole || s.relatedRole === skillFilterRole) &&
+        (!skillFilterDomain || s.domain === skillFilterDomain)
+    );
+    const totalSkillPages = Math.ceil(filteredSkills.length / ITEMS_PER_PAGE);
+    const paginatedSkills = filteredSkills.slice((skillPage - 1) * ITEMS_PER_PAGE, skillPage * ITEMS_PER_PAGE);
 
     const [loading, setLoading] = useState(false);
 
@@ -42,15 +59,21 @@ export default function AdminDashboard() {
     const addSkill = async (e) => {
         e.preventDefault();
         try {
-            await axios.post('/api/admin/approve-skill', newSkill, {
+            const res = await axios.post('/api/admin/approve-skill', { ...newSkill }, {
                 headers: { 'Authorization': `Bearer ${token}` },
             });
-            setNewSkill({ skillName: '', domain: '', relatedRole: '', difficulty: 'beginner' });
-            loadDashboardData();
-            alert('Skill added successfully!');
+            const savedSkill = res.data.skill;
+
+            // Update table locally to show latest first
+            setAllSkills(prev => [savedSkill, ...prev.filter(s => s._id !== savedSkill._id)]);
+
+            setNewSkill({ id: null, skillName: '', domain: '', relatedRole: '', difficulty: 'beginner' });
+
+            // loadDashboardData(); // Optional: We updated local state manually for better UX
+            alert(res.data.message || 'Skill processed successfully!');
         } catch (error) {
-            console.error('Error adding skill:', error);
-            alert(error.response?.data?.error || 'Failed to add skill.');
+            console.error('Error adding/updating skill:', error);
+            alert(error.response?.data?.error || 'Failed to process skill.');
         }
     };
 
@@ -69,6 +92,24 @@ export default function AdminDashboard() {
             alert(error.response?.data?.error || 'Failed to add role.');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const deleteSkillHandler = async (e, id) => {
+        e.stopPropagation(); // Prevent row click
+        if (window.confirm('Are you sure you want to delete this skill?')) {
+            try {
+                await axios.delete(`/api/admin/skill/${id}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                setAllSkills(prev => prev.filter(s => s._id !== id));
+                if (newSkill.id === id) {
+                    setNewSkill({ id: null, skillName: '', domain: '', relatedRole: '', difficulty: 'beginner' });
+                }
+            } catch (error) {
+                console.error("Failed to delete", error);
+                alert("Failed to delete skill.");
+            }
         }
     };
 
@@ -174,7 +215,17 @@ export default function AdminDashboard() {
                         <div className="row">
                             <div className="col-md-4 mb-4">
                                 <div className="card">
-                                    <div className="card-header card-header-admin">➕ Add New Skill</div>
+                                    <div className="card-header card-header-admin">
+                                        {newSkill.id ? '✏️ Update Skill' : '➕ Add New Skill'}
+                                        {newSkill.id && (
+                                            <button
+                                                className="btn btn-sm btn-outline-secondary float-end"
+                                                onClick={() => setNewSkill({ id: null, skillName: '', domain: '', relatedRole: '', difficulty: 'beginner' })}
+                                            >
+                                                Cancel
+                                            </button>
+                                        )}
+                                    </div>
                                     <div className="card-body">
                                         <form onSubmit={addSkill}>
                                             <div className="mb-3">
@@ -223,7 +274,9 @@ export default function AdminDashboard() {
                                                     <option>advanced</option>
                                                 </select>
                                             </div>
-                                            <button type="submit" className="btn btn-primary w-100">Add Skill</button>
+                                            <button type="submit" className={`btn w-100 ${newSkill.id ? 'btn-warning' : 'btn-primary'}`}>
+                                                {newSkill.id ? 'Update Skill' : 'Add Skill'}
+                                            </button>
                                         </form>
                                     </div>
                                 </div>
@@ -231,7 +284,46 @@ export default function AdminDashboard() {
 
                             <div className="col-md-8 mb-4">
                                 <div className="card">
-                                    <div className="card-header card-header-admin">📋 Recent Skills</div>
+                                    <div className="card-header card-header-admin py-3">
+                                        <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                            <div className="d-flex align-items-center gap-2">
+                                                <span className="fw-bold text-dark fs-6">📋 Managed Skills</span>
+                                                <span className="badge bg-white text-secondary border rounded-pill shadow-sm small">
+                                                    {filteredSkills.length} Total
+                                                </span>
+                                            </div>
+
+                                            <div className="d-flex gap-2">
+                                                <div className="input-group input-group-sm shadow-sm" style={{ maxWidth: '200px' }}>
+                                                    <span className="input-group-text bg-white border-end-0 text-muted">🏢</span>
+                                                    <select
+                                                        className="form-select border-start-0 ps-0"
+                                                        value={skillFilterDomain}
+                                                        onChange={(e) => { setSkillFilterDomain(e.target.value); setSkillPage(1); }}
+                                                        style={{ cursor: 'pointer' }}
+                                                    >
+                                                        <option value="">All Domains</option>
+                                                        {uniqueDomains.map(d => <option key={d} value={d}>{d}</option>)}
+                                                    </select>
+                                                </div>
+
+                                                <div className="input-group input-group-sm shadow-sm" style={{ maxWidth: '200px' }}>
+                                                    <span className="input-group-text bg-white border-end-0 text-muted">👤</span>
+                                                    <select
+                                                        className="form-select border-start-0 ps-0"
+                                                        value={skillFilterRole}
+                                                        onChange={(e) => { setSkillFilterRole(e.target.value); setSkillPage(1); }}
+                                                        style={{ cursor: 'pointer' }}
+                                                    >
+                                                        <option value="">All Roles</option>
+                                                        {allRoles
+                                                            .filter(r => !skillFilterDomain || r.domain === skillFilterDomain)
+                                                            .map(r => <option key={r._id} value={r.roleName}>{r.roleName}</option>)}
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                     <div className="card-body table-responsive">
                                         <table className="table table-hover table-sm">
                                             <thead>
@@ -239,24 +331,65 @@ export default function AdminDashboard() {
                                                     <th>Skill Name</th>
                                                     <th>Related Role</th>
                                                     <th>Difficulty</th>
+                                                    <th className="text-center" style={{ width: '80px' }}>Action</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {allSkills.slice(0, 10).map((skill, idx) => (
-                                                    <tr key={idx}>
-                                                        <td>{skill.skillName}</td>
+                                                {paginatedSkills.map((skill, idx) => (
+                                                    <tr
+                                                        key={skill._id || idx}
+                                                        onClick={() => setNewSkill({
+                                                            id: skill._id,
+                                                            skillName: skill.skillName,
+                                                            domain: skill.domain,
+                                                            relatedRole: skill.relatedRole || '',
+                                                            difficulty: skill.difficulty
+                                                        })}
+                                                        style={{ cursor: 'pointer', backgroundColor: newSkill.id === skill._id ? '#e8f0fe' : '' }}
+                                                        title="Click to edit"
+                                                    >
+                                                        <td>{skill.skillName} {newSkill.id === skill._id && '✏️'}</td>
                                                         <td>{skill.relatedRole || skill.domain || '-'}</td>
                                                         <td>
                                                             <span className={`badge bg-${skill.difficulty === 'beginner' ? 'success' : skill.difficulty === 'intermediate' ? 'warning' : 'danger'}`}>
                                                                 {skill.difficulty}
                                                             </span>
                                                         </td>
+                                                        <td className="text-center">
+                                                            <button
+                                                                className="btn btn-sm btn-outline-danger py-0"
+                                                                onClick={(e) => deleteSkillHandler(e, skill._id)}
+                                                                title="Delete Skill"
+                                                            >
+                                                                🗑️
+                                                            </button>
+                                                        </td>
                                                     </tr>
                                                 ))}
-                                                {allSkills.length === 0 && <tr><td colSpan="3">No skills found.</td></tr>}
+                                                {paginatedSkills.length === 0 && <tr><td colSpan="4" className="text-center">No skills found.</td></tr>}
                                             </tbody>
                                         </table>
-                                        {allSkills.length > 10 && <small className="text-muted">Showing 10 of {allSkills.length} skills</small>}
+
+                                        {/* Pagination */}
+                                        {totalSkillPages > 1 && (
+                                            <div className="d-flex justify-content-between align-items-center mt-3">
+                                                <button
+                                                    className="btn btn-sm btn-outline-secondary"
+                                                    disabled={skillPage === 1}
+                                                    onClick={() => setSkillPage(p => p - 1)}
+                                                >
+                                                    Previous
+                                                </button>
+                                                <span className="small text-muted">Page {skillPage} of {totalSkillPages}</span>
+                                                <button
+                                                    className="btn btn-sm btn-outline-secondary"
+                                                    disabled={skillPage === totalSkillPages}
+                                                    onClick={() => setSkillPage(p => p + 1)}
+                                                >
+                                                    Next
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
