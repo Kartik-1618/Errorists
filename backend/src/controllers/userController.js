@@ -63,9 +63,8 @@ export const addSkill = async (req, res) => {
             // Update existing skill
             user.currentSkills[existingSkillIndex].proficiency = proficiency;
             user.currentSkills[existingSkillIndex].yearsOfExperience = yearsOfExperience;
-            user.currentSkills[existingSkillIndex].skillId = skillId; // Update ID if it was missing/changed
-            // If you want to keep the original casing or update to new casing:
-            user.currentSkills[existingSkillIndex].skillName = normalizedSkillName;
+            user.currentSkills[existingSkillIndex].skillId = skillId;
+            // user.currentSkills[existingSkillIndex].skillName = normalizedSkillName; // Optional
         } else {
             // Add new skill
             user.currentSkills.push({
@@ -77,6 +76,23 @@ export const addSkill = async (req, res) => {
         }
 
         await user.save();
+
+        // Log Progress Logic (Auto-History)
+        // Check if we already logged this recently? Or just log every manual add/update as an event.
+        // User wants it in history.
+        const progressAction = existingSkillIndex !== -1
+            ? `Updated skill: ${normalizedSkillName} to ${proficiency}`
+            : `Added skill: ${normalizedSkillName} (${proficiency})`;
+
+        const progress = new Progress({
+            userId: req.user.userId,
+            skillId: skillId,
+            skillName: normalizedSkillName,
+            action: progressAction,
+            notes: 'Manually added via Add Your Skills',
+            completionDate: new Date()
+        });
+        await progress.save();
 
         // Recalculate readiness
         await calculateReadiness(user._id);
@@ -109,41 +125,81 @@ export const logProgress = async (req, res) => {
     try {
         const { skillName, action, certificateUrl, notes } = req.body;
 
-        const skill = await Skill.findOne({ skillName });
-        const progress = new Progress({
-            userId: req.user.userId,
-            skillId: skill?._id,
-            skillName,
-            action,
-            certificateUrl,
-            notes,
-            completionDate: new Date(),
+        // 1. Find Skill (Case Insensitive)
+        const skill = await Skill.findOne({
+            skillName: { $regex: new RegExp(`^${skillName.trim()}$`, 'i') }
         });
 
-        await progress.save();
-
-        // Update user skills (Avoid Duplicates)
         const user = await User.findById(req.user.userId);
+
+        // Check for existing progress to prevent duplicates or update existing
+        // We look for a "Completed" action for this skill
+        let progress = await Progress.findOne({
+            userId: req.user.userId,
+            skillName: { $regex: new RegExp(`^${skillName.trim()}$`, 'i') },
+            action: { $regex: /^Completed/i }
+        });
+
+        if (progress) {
+            // Update existing entry
+            progress.notes = notes;
+            progress.completionDate = new Date(); // Update timestamp to latest
+            await progress.save();
+        } else {
+            // Create new entry
+            progress = new Progress({
+                userId: req.user.userId,
+                skillId: skill?._id,
+                skillName,
+                action,
+                certificateUrl,
+                notes,
+                completionDate: new Date(),
+            });
+            await progress.save();
+        }
+
+        // 2. Determine Target Proficiency based on Goal Role
+        let targetProficiencyLevel = 2; // Default to Intermediate
+        if (user.goalRole) {
+            const role = await Role.findOne({ roleName: user.goalRole });
+            if (role) {
+                const reqSkill = role.requiredSkills.find(
+                    rs => rs.skillName.toLowerCase() === skillName.trim().toLowerCase()
+                );
+                if (reqSkill) {
+                    const roleLevel = PROFICIENCY_MAP[reqSkill.proficiencyLevel.toLowerCase()] || 1;
+                    // If role needs Advanced (3), valid completion means giving them 3.
+                    // If role needs Beginner (1), we give them Intermediate (2) as a bonus.
+                    targetProficiencyLevel = Math.max(roleLevel, 2);
+                }
+            }
+        }
+
+        // Map numeric back to string
+        const LEVEL_NAMES = ['beginner', 'intermediate', 'advanced'];
+        // clamp to 0-2 (though PROFICIENCY_MAP is 1-3. Let's align)
+        // PROFICIENCY_MAP: beginner=1, intermediate=2, advanced=3
+        const targetProficiencyStr = LEVEL_NAMES[Math.min(targetProficiencyLevel, 3) - 1] || 'intermediate';
+
+        // Progress logic moved to top to handle duplicates
+
+
+        // 3. Update User Skills
         const skillIndex = user.currentSkills.findIndex(
-            s => s.skillName.toLowerCase() === skillName.toLowerCase()
+            s => s.skillName.toLowerCase() === skillName.trim().toLowerCase()
         );
 
         if (skillIndex !== -1) {
-            // Skill exists, upgrade it if needed or just keep log
-            // For now, assume "Mark as Done" implies reaching "intermediate" or higher
             const currentProf = PROFICIENCY_MAP[user.currentSkills[skillIndex].proficiency.toLowerCase()] || 0;
-            const targetProf = PROFICIENCY_MAP['intermediate'];
-
-            // Only update proficiency if it's an improvement
-            if (targetProf > currentProf) {
-                user.currentSkills[skillIndex].proficiency = 'intermediate';
+            if (targetProficiencyLevel > currentProf) {
+                user.currentSkills[skillIndex].proficiency = targetProficiencyStr;
             }
         } else {
-            // New skill
             user.currentSkills.push({
                 skillId: skill?._id,
-                skillName,
-                proficiency: 'intermediate',
+                skillName, // Maintain original casing from input or DB? Input is fine, normalized in maps.
+                proficiency: targetProficiencyStr,
             });
         }
 
@@ -153,7 +209,17 @@ export const logProgress = async (req, res) => {
         await calculateReadiness(user._id);
 
         const updatedUser = await User.findById(req.user.userId);
-        const recommendations = await Recommendation.find({ userId: req.user.userId }).sort({ priority: -1 });
+        const recommendations = await Recommendation.find({ userId: req.user.userId }); // Removed sort to keep roadmap order? Or sort by priority? Let's use priority.
+        // Actually, for roadmap, we might want to preserve the order defined in Role?
+        // But Role skills are just an array.
+        // Let's sort pending first, then completed?
+        // Recommendation logic usually handles sorting. Let's re-sort:
+        // Completed last.
+        recommendations.sort((a, b) => {
+            if (a.status === 'completed' && b.status !== 'completed') return 1;
+            if (a.status !== 'completed' && b.status === 'completed') return -1;
+            return b.priority - a.priority; // High priority first
+        });
 
         res.json({ message: 'Progress logged', progress, user: updatedUser, recommendations });
     } catch (error) {
@@ -255,40 +321,41 @@ async function calculateReadiness(userId) {
 
         // --- Recommendations Generation ---
 
-        // 1. Clear old pending recommendations
-        await Recommendation.deleteMany({ userId: user._id, status: 'pending' });
+        // 1. Clear ALL old recommendations (Full regeneration to include completed ones)
+        await Recommendation.deleteMany({ userId: user._id });
 
         let finalRecommendations = [];
 
-        // 2. Identify Missing or "Gap" Skills
-        const skillsToImprove = role.requiredSkills.filter(rs => {
-            const userLevel = userSkillsMap.get(rs.skillName.toLowerCase());
-            const requiredLevel = PROFICIENCY_MAP[rs.proficiencyLevel.toLowerCase()] || 1;
-
-            // Return true if (User doesn't have it) OR (User has it but Level < Required)
-            return userLevel === undefined || userLevel < requiredLevel;
-        });
-
-        // 3. Generate Recommendations from Gaps (Deterministic & Efficient)
-        // We rely on the Role's required skills (which are AI-generated if needed) to determine the next steps.
-        // This ensures the "Add Skills" dropdown matches the "Next Steps".
-        finalRecommendations = skillsToImprove.map(skill => {
+        // 2. Generate Recommendations for ALL Required Skills
+        // This ensures the list serves as a comprehensive "Roadmap"
+        finalRecommendations = role.requiredSkills.map(skill => {
             const userLevelVal = userSkillsMap.get(skill.skillName.toLowerCase());
-            const isUpgrade = userLevelVal !== undefined;
+            const requiredLevelVal = PROFICIENCY_MAP[skill.proficiencyLevel.toLowerCase()] || 1;
+
+            const isCompleted = userLevelVal !== undefined && userLevelVal >= requiredLevelVal;
+            const isUpgradeWithSkill = userLevelVal !== undefined && userLevelVal < requiredLevelVal;
+
+            let learningAction = "";
+            if (isCompleted) {
+                learningAction = "✅ Skill requirement met!";
+            } else if (isUpgradeWithSkill) {
+                learningAction = `Upgrade ${skill.skillName} to ${skill.proficiencyLevel}`;
+            } else {
+                learningAction = `Learn ${skill.skillName} (Target: ${skill.proficiencyLevel})`;
+            }
 
             return {
                 userId: user._id,
                 skillId: skill.skillId,
                 skillName: skill.skillName,
                 priority: skill.weight || 3,
-                learningAction: isUpgrade
-                    ? `Upgrade ${skill.skillName} from ${Object.keys(PROFICIENCY_MAP).find(k => PROFICIENCY_MAP[k] === userLevelVal)} to ${skill.proficiencyLevel}`
-                    : `Learn ${skill.skillName} (Target: ${skill.proficiencyLevel})`,
-                estimatedDays: (skill.weight || 1) * 7,
-                status: 'pending'
+                learningAction: learningAction,
+                estimatedDays: isCompleted ? 0 : (skill.weight || 1) * 7,
+                status: isCompleted ? 'completed' : 'pending' // pending actually means "to-do"
             };
         });
-        console.log(`✅ Generated ${finalRecommendations.length} Recommendations based on Gaps.`);
+
+        console.log(`✅ Generated ${finalRecommendations.length} Recommendations (Roadmap).`);
 
         if (finalRecommendations.length > 0) {
             await Recommendation.insertMany(finalRecommendations);

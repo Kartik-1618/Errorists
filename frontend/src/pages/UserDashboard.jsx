@@ -12,6 +12,12 @@ export default function UserDashboard({ user }) {
     const [newSkillProficiency, setNewSkillProficiency] = useState('beginner');
     const [goalRole, setGoalRole] = useState('');
 
+    // Completion Modal State
+    const [showModal, setShowModal] = useState(false);
+    const [selectedSkill, setSelectedSkill] = useState(null);
+    const [completionNote, setCompletionNote] = useState('');
+    const [noteError, setNoteError] = useState('');
+
     const [loading, setLoading] = useState(true);
 
     const token = localStorage.getItem('token');
@@ -90,24 +96,42 @@ export default function UserDashboard({ user }) {
         }
     };
 
-    const logProgress = async (skillName) => {
+    const handleOpenCompletionModal = (skillName) => {
+        setSelectedSkill(skillName);
+        setCompletionNote('');
+        setNoteError('');
+        setShowModal(true);
+    };
+
+    const submitCompletion = async () => {
+        if (!completionNote.trim()) {
+            setNoteError('Please enter a note about your completion (e.g., Course name, Project URL).');
+            return;
+        }
+
         try {
             const res = await axios.post(
                 '/api/user/progress',
                 {
-                    skillName,
-                    action: `Completed ${skillName}`,
+                    skillName: selectedSkill,
+                    action: `Completed ${selectedSkill}`,
                     certificateUrl: '',
-                    notes: 'Skill completed',
+                    notes: completionNote,
                 },
                 { headers: { 'Authorization': `Bearer ${token}` } }
             );
             // Immediate update
             setProfile(res.data.user);
             setRecommendations(res.data.recommendations);
-            loadUserData();
+            loadUserData(); // To update history list
+            setShowModal(false);
+            setSelectedSkill(null);
+            setCompletionNote('');
         } catch (error) {
             console.error('Error logging progress:', error);
+            if (error.response?.data?.error) {
+                alert(error.response.data.error); // Show backend Dup error if any
+            }
         }
     };
 
@@ -115,6 +139,35 @@ export default function UserDashboard({ user }) {
 
     return (
         <div className="container-fluid container-main">
+            {/* Modal Overlay */}
+            {showModal && (
+                <div className="modal" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                    <div className="modal-dialog modal-dialog-centered">
+                        <div className="modal-content">
+                            <div className="modal-header">
+                                <h5 className="modal-title">🎉 Mark "{selectedSkill}" as Complete</h5>
+                                <button type="button" className="btn-close" onClick={() => setShowModal(false)}></button>
+                            </div>
+                            <div className="modal-body">
+                                <p className="text-muted mb-2">Great job! Briefly describe how you achieved this (e.g., completed a course, built a project).</p>
+                                <textarea
+                                    className={`form-control ${noteError ? 'is-invalid' : ''}`}
+                                    rows="3"
+                                    placeholder="Enter your completion notes..."
+                                    value={completionNote}
+                                    onChange={(e) => setCompletionNote(e.target.value)}
+                                ></textarea>
+                                {noteError && <div className="invalid-feedback">{noteError}</div>}
+                            </div>
+                            <div className="modal-footer">
+                                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
+                                <button type="button" className="btn btn-success" onClick={submitCompletion}>Confirm Completion</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="container">
                 {/* Header */}
                 <div className="row mb-4">
@@ -243,13 +296,19 @@ export default function UserDashboard({ user }) {
                             <div className="card-header card-header-custom">
                                 📋 My Skills ({profile?.currentSkills?.length || 0})
                             </div>
-                            <div className="card-body">
+                            <div className="card-body" style={{ maxHeight: '350px', overflowY: 'auto' }}>
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                                    {profile?.currentSkills?.map((skill, idx) => (
-                                        <span key={idx} className="skill-badge">
-                                            {skill.skillName} <small>({skill.proficiency})</small>
-                                        </span>
-                                    ))}
+                                    {profile?.currentSkills?.map((skill, idx) => {
+                                        let badgeClass = 'bg-secondary';
+                                        if (skill.proficiency.toLowerCase() === 'advanced') badgeClass = 'bg-success';
+                                        if (skill.proficiency.toLowerCase() === 'intermediate') badgeClass = 'bg-primary';
+
+                                        return (
+                                            <span key={idx} className={`badge ${badgeClass} p-2`} style={{ fontSize: '0.9rem', fontWeight: '500' }}>
+                                                {skill.skillName} <small className="opacity-75" style={{ fontSize: '0.7em', marginLeft: '4px' }}>{skill.proficiency}</small>
+                                            </span>
+                                        );
+                                    })}
                                     {(!profile?.currentSkills || profile.currentSkills.length === 0) && (
                                         <p className="text-muted small">No skills added yet</p>
                                     )}
@@ -265,30 +324,44 @@ export default function UserDashboard({ user }) {
                         <h3 style={{ color: '#2c3e50', fontWeight: 700, marginBottom: '1.5rem' }}>🚀 Your Next Learning Steps</h3>
 
                         {recommendations?.length > 0 ? (
-                            recommendations.map((rec, idx) => (
-                                <div key={idx} className="recommendation-card">
-                                    <div className="recommendation-priority">Priority: {rec.priority >= 4 ? 'High' : 'Medium'}</div>
-                                    <h5 style={{ color: 'var(--primary-color)', marginBottom: '10px' }}>{rec.skillName}</h5>
-                                    <p style={{ color: '#666', marginBottom: '10px' }}>
-                                        <strong>Why:</strong> {rec.learningAction}
-                                    </p>
-                                    <p style={{ color: '#666', marginBottom: '10px' }}>
-                                        <strong>Estimated Days:</strong> {rec.estimatedDays}
-                                    </p>
-                                    <button
-                                        className="btn btn-sm btn-primary me-2"
-                                        onClick={() => window.open(`https://www.google.com/search?q=Learn+${rec.skillName}`, '_blank')}
-                                    >
-                                        Start Learning
-                                    </button>
-                                    <button
-                                        className="btn btn-sm btn-outline-secondary"
-                                        onClick={() => logProgress(rec.skillName)}
-                                    >
-                                        Mark Complete
-                                    </button>
-                                </div>
-                            ))
+                            recommendations.map((rec, idx) => {
+                                const isCompleted = rec.status === 'completed';
+                                return (
+                                    <div key={idx} className="recommendation-card" style={isCompleted ? { borderLeft: '5px solid var(--success-color)', backgroundColor: '#f8fff9' } : {}}>
+                                        <div className="recommendation-priority">Priority: {rec.priority >= 4 ? 'High' : 'Medium'}</div>
+                                        <h5 style={{ color: isCompleted ? 'var(--success-color)' : 'var(--primary-color)', marginBottom: '10px' }}>
+                                            {rec.skillName} {isCompleted && '✅'}
+                                        </h5>
+                                        <p style={{ color: '#666', marginBottom: '10px' }}>
+                                            <strong>Why:</strong> {rec.learningAction}
+                                        </p>
+                                        {!isCompleted && (
+                                            <p style={{ color: '#666', marginBottom: '10px' }}>
+                                                <strong>Estimated Days:</strong> {rec.estimatedDays}
+                                            </p>
+                                        )}
+
+                                        {!isCompleted ? (
+                                            <>
+                                                <button
+                                                    className="btn btn-sm btn-primary me-2"
+                                                    onClick={() => window.open(`https://www.google.com/search?q=Learn+${rec.skillName}`, '_blank')}
+                                                >
+                                                    Start Learning
+                                                </button>
+                                                <button
+                                                    className="btn btn-sm btn-outline-secondary"
+                                                    onClick={() => handleOpenCompletionModal(rec.skillName)}
+                                                >
+                                                    Mark Complete
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <span className="badge bg-success">Completed</span>
+                                        )}
+                                    </div>
+                                );
+                            })
                         ) : (
                             <div className="alert alert-info">
                                 No specific recommendations yet. Set your goal role and add skills to get started!
@@ -306,7 +379,12 @@ export default function UserDashboard({ user }) {
                             progress.map((p, idx) => (
                                 <div key={idx} className="progress-item">
                                     <h6 style={{ color: 'var(--success-color)', margin: '0 0 5px 0' }}>✅ {p.skillName}</h6>
-                                    <small style={{ color: '#999' }}>Completed on {new Date(p.createdAt).toLocaleDateString()}</small>
+                                    {p.notes && (
+                                        <p style={{ fontSize: '0.9rem', color: '#666', fontStyle: 'italic', margin: '5px 0' }}>
+                                            "{p.notes}"
+                                        </p>
+                                    )}
+                                    <small style={{ color: '#999' }}>Completed on {new Date(p.completionDate || p.createdAt).toLocaleDateString()}</small>
                                 </div>
                             ))
                         ) : (
