@@ -130,6 +130,22 @@ export default function AdminDashboard() {
         }
     };
 
+    const deleteUserHandler = async (e, id, userName) => {
+        e.stopPropagation();
+        if (window.confirm(`Are you sure you want to delete user '${userName}'?\n\nThis will permanently remove their account and ALL progress history.`)) {
+            try {
+                await axios.delete(`/api/admin/user/${id}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                setUsers(prev => prev.filter(u => u._id !== id));
+                alert(`User '${userName}' deleted successfully.`);
+            } catch (error) {
+                console.error("Failed to delete User", error);
+                alert("Failed to delete User.");
+            }
+        }
+    };
+
     return (
         <div className="container-fluid container-main">
             <div className="container">
@@ -505,11 +521,12 @@ export default function AdminDashboard() {
                                                     <th>Domain</th>
                                                     <th>Goal Role</th>
                                                     <th>Readiness</th>
+                                                    <th className="text-center" style={{ width: '80px' }}>Action</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 {users.map((u, idx) => (
-                                                    <tr key={idx}>
+                                                    <tr key={u._id || idx}>
                                                         <td>{u.name}</td>
                                                         <td>{u.email}</td>
                                                         <td>{u.domain}</td>
@@ -526,6 +543,15 @@ export default function AdminDashboard() {
                                                                     {u.readiness}%
                                                                 </div>
                                                             </div>
+                                                        </td>
+                                                        <td className="text-center">
+                                                            <button
+                                                                className="btn btn-sm btn-outline-danger py-0"
+                                                                onClick={(e) => deleteUserHandler(e, u._id, u.name)}
+                                                                title="Delete User"
+                                                            >
+                                                                🗑️
+                                                            </button>
                                                         </td>
                                                     </tr>
                                                 ))}

@@ -1,6 +1,8 @@
 import User from '../models/User.js';
 import Skill from '../models/Skill.js';
 import Role from '../models/Role.js';
+import Progress from '../models/Progress.js';
+import Recommendation from '../models/Recommendation.js';
 
 export const getAdminDashboard = async (req, res) => {
     try {
@@ -70,6 +72,26 @@ export const deleteRole = async (req, res) => {
         await Role.findByIdAndDelete(id);
 
         res.json({ message: 'Role and associated skills deleted successfully.' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+export const deleteUser = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const user = await User.findById(id);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        // Cleanup User Data
+        await Progress.deleteMany({ userId: id });
+        await Recommendation.deleteMany({ userId: id });
+
+        await User.findByIdAndDelete(id);
+
+        res.json({ message: 'User and all associated progress deleted successfully.' });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
