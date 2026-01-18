@@ -42,21 +42,43 @@ export default function UserProfile({ user }) {
             ]);
 
             const p = profileRes.data;
-            setProfile({
-                name: p.name || '',
-                degree: p.degree || '',
-                academicYear: p.academicYear || '',
-                domain: p.domain || '',
-                email: p.email || ''
-            });
+            if (p) {
+                setProfile({
+                    name: p.name || '',
+                    degree: p.degree || '',
+                    academicYear: p.academicYear || '',
+                    domain: p.domain || '',
+                    email: p.email || ''
+                });
+            } else {
+                // Token implies a user ID that doesn't exist (Zombie Session)
+                console.error("User profile not found in DB. Session invalid.");
+                // We set a specific error state instead of auto-redirecting, 
+                // so the user understands WHY they need to login again.
+                setError('SESSION_EXPIRED');
+                setLoading(false);
+                return;
+            }
 
-            // Extract unique domains from roles
-            const uniqueDomains = [...new Set(rolesRes.data.map(r => r.domain).filter(Boolean))].sort();
+            // Robust check for roles array
+            let uniqueDomains = [];
+            if (Array.isArray(rolesRes.data)) {
+                uniqueDomains = [...new Set(rolesRes.data.map(r => r.domain).filter(Boolean))].sort();
+            }
             setAvailableDomains(uniqueDomains);
 
         } catch (err) {
-            console.error(err);
-            setError('Failed to load profile data.');
+            console.error("Profile load error:", err);
+            if (err.response && err.response.status === 404) {
+                // User endpoint returned 404
+                localStorage.removeItem('token');
+                window.location.href = '/login';
+                return;
+            }
+            // Don't show error to user immediately if partial data loaded, just log it.
+            if (!profile.email) {
+                setError('Failed to load profile data. Please try refreshing or logging in again.');
+            }
         } finally {
             setLoading(false);
         }
@@ -118,72 +140,100 @@ export default function UserProfile({ user }) {
                         </div>
                         <div className="card-body p-4">
                             {message && <div className="alert alert-success">{message}</div>}
-                            {error && <div className="alert alert-danger">{error}</div>}
 
-                            <form onSubmit={handleProfileUpdate}>
-                                <div className="mb-3">
-                                    <label className="form-label text-muted small fw-bold">Email Address (Read Only)</label>
-                                    <input type="text" className="form-control bg-light" value={profile.email} disabled />
+                            {/* Special Session Expired Handling */}
+                            {error === 'SESSION_EXPIRED' ? (
+                                <div className="text-center py-5">
+                                    <h4 className="text-danger mb-3">⚠️ Session Expired</h4>
+                                    <p className="text-muted mb-4">
+                                        Your session is no longer valid (likely due to a system update).<br />
+                                        Please log in again to access your profile.
+                                    </p>
+                                    <button
+                                        className="btn btn-outline-danger"
+                                        onClick={() => {
+                                            localStorage.removeItem('token');
+                                            localStorage.removeItem('user');
+                                            window.location.href = '/login';
+                                        }}
+                                    >
+                                        Log In Again
+                                    </button>
                                 </div>
+                            ) : (
+                                error && <div className="alert alert-danger">{error}</div>
+                            )}
 
-                                <div className="mb-3">
-                                    <label className="form-label">Full Name</label>
-                                    <input
-                                        type="text"
-                                        className="form-control"
-                                        value={profile.name}
-                                        onChange={(e) => setProfile({ ...profile, name: e.target.value })}
-                                        required
-                                    />
-                                </div>
+                            {error !== 'SESSION_EXPIRED' && (
+                                <form onSubmit={handleProfileUpdate}>
+                                    <div className="mb-3">
+                                        <label className="form-label text-muted small fw-bold">Email Address (Read Only)</label>
+                                        <input type="text" className="form-control bg-light" value={profile.email} disabled />
+                                    </div>
 
-                                <div className="row">
-                                    <div className="col-md-6 mb-3">
-                                        <label className="form-label">Degree</label>
+                                    <div className="mb-3">
+                                        <label className="form-label">Full Name</label>
                                         <input
                                             type="text"
                                             className="form-control"
-                                            value={profile.degree}
-                                            onChange={(e) => setProfile({ ...profile, degree: e.target.value })}
+                                            value={profile.name}
+                                            onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+                                            required
                                         />
                                     </div>
-                                    <div className="col-md-6 mb-3">
-                                        <label className="form-label">Academic Year</label>
-                                        <select
-                                            className="form-select"
-                                            value={profile.academicYear}
-                                            onChange={(e) => setProfile({ ...profile, academicYear: e.target.value })}
-                                        >
-                                            <option value="">Select Year</option>
-                                            <option value="1st Year">1st Year</option>
-                                            <option value="2nd Year">2nd Year</option>
-                                            <option value="3rd Year">3rd Year</option>
-                                            <option value="4th Year">4th Year</option>
-                                            <option value="Graduated">Graduated</option>
-                                        </select>
-                                    </div>
-                                </div>
 
-                                <div className="mb-4">
-                                    <label className="form-label">Domain Of Interest</label>
-                                    <select
-                                        className="form-select"
-                                        value={profile.domain}
-                                        onChange={(e) => setProfile({ ...profile, domain: e.target.value })}
-                                    >
-                                        <option value="">Select Domain</option>
-                                        {availableDomains.length > 0 ? (
-                                            availableDomains.map(d => <option key={d} value={d}>{d}</option>)
-                                        ) : (
-                                            <option disabled>No domains found available</option>
-                                        )}
-                                        <option value="Other">Other</option>
-                                    </select>
-                                    <small className="text-muted">Changing this will update the recommended roles in your dashboard.</small>
-                                </div>
+                                    {user?.role !== 'admin' && (
+                                        <>
+                                            <div className="row">
+                                                <div className="col-md-6 mb-3">
+                                                    <label className="form-label">Degree</label>
+                                                    <input
+                                                        type="text"
+                                                        className="form-control"
+                                                        value={profile.degree}
+                                                        onChange={(e) => setProfile({ ...profile, degree: e.target.value })}
+                                                    />
+                                                </div>
+                                                <div className="col-md-6 mb-3">
+                                                    <label className="form-label">Academic Year</label>
+                                                    <select
+                                                        className="form-select"
+                                                        value={profile.academicYear}
+                                                        onChange={(e) => setProfile({ ...profile, academicYear: e.target.value })}
+                                                    >
+                                                        <option value="">Select Year</option>
+                                                        <option value="1st Year">1st Year</option>
+                                                        <option value="2nd Year">2nd Year</option>
+                                                        <option value="3rd Year">3rd Year</option>
+                                                        <option value="4th Year">4th Year</option>
+                                                        <option value="Graduated">Graduated</option>
+                                                    </select>
+                                                </div>
+                                            </div>
 
-                                <button type="submit" className="btn btn-primary w-100">Save Changes</button>
-                            </form>
+                                            <div className="mb-4">
+                                                <label className="form-label">Domain Of Interest</label>
+                                                <select
+                                                    className="form-select"
+                                                    value={profile.domain}
+                                                    onChange={(e) => setProfile({ ...profile, domain: e.target.value })}
+                                                >
+                                                    <option value="">Select Domain</option>
+                                                    {availableDomains.length > 0 ? (
+                                                        availableDomains.map(d => <option key={d} value={d}>{d}</option>)
+                                                    ) : (
+                                                        <option disabled>No domains found available</option>
+                                                    )}
+                                                    <option value="Other">Other</option>
+                                                </select>
+                                                <small className="text-muted">Changing this will update the recommended roles in your dashboard.</small>
+                                            </div>
+                                        </>
+                                    )}
+
+                                    <button type="submit" className="btn btn-primary w-100">Save Changes</button>
+                                </form>
+                            )}
                         </div>
                     </div>
                 </div>

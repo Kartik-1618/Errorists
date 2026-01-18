@@ -46,29 +46,12 @@ export const login = async (req, res) => {
     try {
         const { email, password } = req.body;
 
-        // Check admin first
-        let admin = await Admin.findOne({ email });
-        if (admin) {
-            const isPasswordValid = await admin.comparePassword(password);
-            if (isPasswordValid) {
-                const token = jwt.sign(
-                    { userId: admin._id, email: admin.email, role: 'admin' },
-                    process.env.JWT_SECRET,
-                    { expiresIn: '30d' }
-                );
-                return res.json({
-                    message: 'Admin login successful',
-                    token,
-                    user: { id: admin._id, name: admin.name, email: admin.email, role: 'admin' },
-                });
-            } else {
-                return res.status(401).json({ error: 'Invalid credentials' });
-            }
-        }
+        // Unified Login: Check User collection (which includes Admins)
+        const user = await User.findOne({ email });
 
-        // Check user
-        let user = await User.findOne({ email });
         if (!user) {
+            // Optional: Check legacy Admin collection if migration isn't complete? 
+            // Better to enforce single source of truth.
             return res.status(404).json({ error: 'User not found' });
         }
 
@@ -77,16 +60,24 @@ export const login = async (req, res) => {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
+        // Generate token based on the user's actual role
         const token = jwt.sign(
-            { userId: user._id, email: user.email, role: 'user' },
+            { userId: user._id, email: user.email, role: user.role },
             process.env.JWT_SECRET,
             { expiresIn: '30d' }
         );
 
         res.json({
-            message: 'User login successful',
+            message: 'Login successful',
             token,
-            user: { id: user._id, name: user.name, email: user.email, role: 'user' },
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                degree: user.degree,
+                domain: user.domain
+            },
         });
     } catch (error) {
         res.status(500).json({ error: error.message });
