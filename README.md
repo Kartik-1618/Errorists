@@ -1,9 +1,8 @@
-# Skill Gap Assessment & Recommendation System (PS-3)
+# Skill Gap Assessment & Recommendation System
 
-A platform that guides students from their current skill status toward a career goal by identifying skill gaps and recommending actions to bridge those gaps. Built for Ingenious Hackathon (36 hours).
+A platform that guides students from their current skill status toward a career goal by identifying skill gaps and recommending actions to bridge those gaps.
 
-PROBLEM STATEMENT (PS‑3)
-
+PROBLEM:
 Students struggle with:
 - understanding which skills they currently have
 - identifying missing skills for a chosen career role
